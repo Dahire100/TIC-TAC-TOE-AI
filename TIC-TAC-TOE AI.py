@@ -1,6 +1,7 @@
 import math
 import numpy as np
 import matplotlib.pyplot as plt
+import re
 
 # Initialize the game board
 AI = 'O'
@@ -19,40 +20,32 @@ fig, ax = plt.subplots()
 # Plot the 2D Tic-Tac-Toe board
 def plot_board_2d(board):
     ax.clear()  # Clear the previous plot
-
-    # Draw the grid
     ax.set_xticks(np.arange(0.5, 3.5, step=1))
     ax.set_yticks(np.arange(0.5, 3.5, step=1))
     ax.grid(True)
-
-    # Set axis limits and turn off axis labels
     ax.set_xlim(0, 3)
     ax.set_ylim(0, 3)
     ax.set_xticklabels([])
     ax.set_yticklabels([])
 
-    # Plot the moves on the 2D board
     for i, cell in enumerate(board):
-        x = i % 3  # Column
-        y = 2 - (i // 3)  # Row (inverted for proper board display)
+        x = i % 3
+        y = 2 - (i // 3)
         if cell == YOU:
             ax.text(x + 0.5, y + 0.5, 'X', fontsize=40, ha='center', va='center', color='red')
         elif cell == AI:
             ax.text(x + 0.5, y + 0.5, 'O', fontsize=40, ha='center', va='center', color='blue')
 
-    plt.draw()  # Redraw the updated plot
-    plt.pause(0.001)  # Pause briefly to allow updates and input collection
+    plt.draw()
+    plt.pause(0.001)
 
 def check_winner(board, player):
     winning_combinations = [
-        [0, 1, 2], [3, 4, 5], [6, 7, 8],  
-        [0, 3, 6], [1, 4, 7], [2, 5, 8],  
+        [0, 1, 2], [3, 4, 5], [6, 7, 8],
+        [0, 3, 6], [1, 4, 7], [2, 5, 8],
         [0, 4, 8], [2, 4, 6]
     ]
-    for combo in winning_combinations:
-        if all(board[i] == player for i in combo):
-            return True
-    return False
+    return any(all(board[i] == player for i in combo) for combo in winning_combinations)
 
 def is_board_full(board):
     return all(cell != '-' for cell in board)
@@ -103,52 +96,71 @@ def find_best_move(board):
                 best_move = i
     return best_move
 
-def play_game():
-    board = ['-'] * 9  # Initialize the board
+def parse_input(user_input):
+    """Convert natural language input into board index."""
+    mapping = {
+        'top left': 0, 'top center': 1, 'top right': 2,
+        'middle left': 3, 'middle center': 4, 'middle right': 5,
+        'bottom left': 6, 'bottom center': 7, 'bottom right': 8,
+        '1': 0, '2': 1, '3': 2,
+        '4': 3, '5': 4, '6': 5,
+        '7': 6, '8': 7, '9': 8
+    }
+    user_input = user_input.lower()
+    for key in mapping.keys():
+        if re.search(r'\b' + re.escape(key) + r'\b', user_input):
+            return mapping[key]
+    return -1  # Invalid input
 
-    # Main game loop
+def play_game():
+    board = ['-'] * 9
+
     while True:
-        print_board_terminal(board)  # Print the board in the terminal
-        plot_board_2d(board)         # Plot the 2D board
-        try:
-            move = int(input("Select your choice (1-9): "))  # Ask for 1-based input
-            if move < 1 or move > 9:
-                print("Invalid input. Please choose a number between 1 and 9.")
-                continue
-            move -= 1  # Convert to 0-based index
-            if board[move] == '-':
-                board[move] = YOU
-                if check_winner(board, YOU):
-                    print_board_terminal(board)
-                    plot_board_2d(board)
-                    print("You win!")
-                    break
-                elif is_board_full(board):
-                    print_board_terminal(board)
-                    plot_board_2d(board)
-                    print("It's a draw!")
-                    break
-                ai_move = find_best_move(board)
-                board[ai_move] = AI
-                if check_winner(board, AI):
-                    print_board_terminal(board)
-                    plot_board_2d(board)
-                    print("AI wins!")
-                    break
-                elif is_board_full(board):
-                    print_board_terminal(board)
-                    plot_board_2d(board)
-                    print("It's a draw!")
-                    break
-            else:
-                print("Cell already filled. Try again.")
-        except ValueError:
-            print("Invalid input. Please enter a number between 1 and 9.")
+        print_board_terminal(board)
+        plot_board_2d(board)
+        user_input = input("Select your choice (e.g., 'top left', 'middle center', or enter a number 1-9): ")
+
+        move = parse_input(user_input)
+
+        if move < 0 or move >= 9:
+            print("Invalid input. Please describe your choice more clearly or enter a number between 1 and 9.")
+            continue
+
+        if board[move] == '-':
+            board[move] = YOU
+            print(f"You placed an 'X' in {user_input}.")
+            if check_winner(board, YOU):
+                print_board_terminal(board)
+                plot_board_2d(board)
+                print("You win!")
+                break
+            elif is_board_full(board):
+                print_board_terminal(board)
+                plot_board_2d(board)
+                print("It's a draw!")
+                break
+            
+            ai_move = find_best_move(board)
+            board[ai_move] = AI
+            print(f"AI placed an 'O' in {['top left', 'top center', 'top right', 'middle left', 'middle center', 'middle right', 'bottom left', 'bottom center', 'bottom right'][ai_move]}.")
+            if check_winner(board, AI):
+                print_board_terminal(board)
+                plot_board_2d(board)
+                print("AI wins!")
+                break
+            elif is_board_full(board):
+                print_board_terminal(board)
+                plot_board_2d(board)
+                print("It's a draw!")
+                break
+        else:
+            print("Cell already filled. Try again.")
 
 # Game restart loop
 while True:
-    play_game()  # Start the game
+    play_game()
     restart = input("Game over. Do you want to play again? (y/n): ").lower()
     if restart != 'y':
         print("Thanks for playing!")
         break
+        
